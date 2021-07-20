@@ -13,6 +13,8 @@ class UDPServer {
             serverSocket.receive(receivePacket);
 
             String sentence = new String(receivePacket.getData());
+            System.out.println("Data received is: " + sentence);
+
             InetAddress IPAddress = receivePacket.getAddress();
             int port = receivePacket.getPort();
 

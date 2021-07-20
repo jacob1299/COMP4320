@@ -1,18 +1,32 @@
 import java.io.*;
 import java.net.*;
+// import java.util.Scanner;
+
+// Jacob's IP so I don't have to keep looking for it: 172.19.57.194
 
 class UDPClient {
     public static void main(String[] args) throws Exception {
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+        InetAddress IPAddress = null;
 
         DatagramSocket clientSocket = new DatagramSocket();
-        InetAddress IPAddress = InetAddress.getByName("10.183.44.200");
+
+        System.out.println("Enter server IPAdress to connect to.");
+        String ip = inFromUser.readLine();
+        try {
+            IPAddress = InetAddress.getByName(ip);
+        } catch (UnknownHostException e) {
+            System.out.println("invalid IPAddress! Please try again with a valid IP.");
+        }
 
         byte[] sendData = new byte[1024];
         byte [] receiveData = new byte[1024];
 
-        String sentence = inFromUser.readLine();
-        sendData = sentence.getBytes();
+        System.out.println("Enter an HTTP GET request.");
+        String request = inFromUser.readLine();
+
+        // String sentence = inFromUser.readLine();
+        sendData = request.getBytes();
 
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
 
@@ -24,5 +38,6 @@ class UDPClient {
         String modifiedSentence = new String(receivePacket.getData());
 
         System.out.println("FROM SERVER: " + modifiedSentence);
+        clientSocket.close();
     }
 }
