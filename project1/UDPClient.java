@@ -6,7 +6,7 @@ class UDPClient {
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
 
         DatagramSocket clientSocket = new DatagramSocket();
-        InetAddress IPAddress = InetAddress.getByName("hostname");
+        InetAddress IPAddress = InetAddress.getByName("10.183.44.200");
 
         byte[] sendData = new byte[1024];
         byte [] receiveData = new byte[1024];
@@ -14,7 +14,7 @@ class UDPClient {
         String sentence = inFromUser.readLine();
         sendData = sentence.getBytes();
 
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receiveData.length);
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
 
         clientSocket.send(sendPacket); 
 
@@ -24,6 +24,5 @@ class UDPClient {
         String modifiedSentence = new String(receivePacket.getData());
 
         System.out.println("FROM SERVER: " + modifiedSentence);
-        clientSocket.close();
     }
 }
