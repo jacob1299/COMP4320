@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 // import java.util.Scanner;
 
-// Jacob's IP so I don't have to keep looking for it: 172.19.57.194
+// 172.19.57.194
 
 class UDPClient {
     public static void main(String[] args) throws Exception {

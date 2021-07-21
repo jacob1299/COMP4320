@@ -18,8 +18,8 @@ class UDPServer {
             InetAddress IPAddress = receivePacket.getAddress();
             int port = receivePacket.getPort();
 
-            String capitalizedSentence = sentence.toUpperCase();
-            sendData = capitalizedSentence.getBytes();
+            // check if request is valid
+            isValidRequest(sentence);
 
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port); 
             serverSocket.send(sendPacket);
@@ -28,4 +28,14 @@ class UDPServer {
 
         }
     }
+
+    public static Boolean isValidRequest(String request) {
+        String[] r = request.split(" ");
+        if (r.length != 3) {
+            return false;
+        } else 
+            return true;
+    }
+
+    
 }
