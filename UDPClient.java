@@ -4,7 +4,14 @@ import java.lang.Math;
 import java.util.Random;
 import java.util.ArrayList;
 
-// 172.19.56.155
+/*
+    Authors: Colin Vijvere
+             Chris Acosta
+             Jacob Badolato
+    Class: 
+             COMP4320
+             Dr. Alvin Lim
+*/
 
 class UDPClient {
     public static void main(String[] args) throws Exception {
@@ -54,12 +61,10 @@ class UDPClient {
         //create a datagram with data to send, length, IP addr, port
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
 
-        //send datagram to the server
+        //send datagram to the server (this is the HTTP request)
         clientSocket.send(sendPacket); 
 
 
-
-    
         //Read the datagram from the server till nullbyte packet is received
         boolean finished =false;
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -111,10 +116,6 @@ class UDPClient {
     }
 
 
-    
-    
-    
-    
     //gremlin function to corrupt bytes in packets
     public static byte[] Gremlin(double p, byte[] pack) {
         if (Math.random() < p) {

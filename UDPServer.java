@@ -20,8 +20,8 @@ class UDPServer {
             serverSocket.receive(receivePacket);
 
             //Get IP address and port #
-           InetAddress IPAddress = receivePacket.getAddress();
-           int port = receivePacket.getPort();
+            InetAddress IPAddress = receivePacket.getAddress();
+            int port = receivePacket.getPort();
 
             String sentence = new String(receivePacket.getData());
             System.out.println("Data received is: " + sentence);
@@ -43,7 +43,9 @@ class UDPServer {
                 temp = fileIn.readLine();
             }
              fileIn.close();
-        } catch(FileNotFoundException e) {
+        } catch(FileNotFoundException e) { 
+                // catch exception if file is not found, send error html file. 
+                System.err.println("File not found. Program exiting. ");
                 errorCode = "404 - File Not Found";
             }
             
@@ -53,7 +55,12 @@ class UDPServer {
             }
 
             //converting file to byte array
-            byte[] bytes = Files.readAllBytes(Paths.get(fileNameRequested));
+            byte[] bytes = null;
+            try {
+                bytes = Files.readAllBytes(Paths.get(fileNameRequested));
+            } catch(NoSuchFileException e) {
+                bytes = Files.readAllBytes(Paths.get("errorFile.html"));
+            }
             
             //Sending HTTPHeader:
             String HTTPHeader = "\n" + arr[2] + " " + errorCode + "\r\nContent-Type: text/plain\r\nContent-Length: " + bytes.length + " bytes\r\n";
@@ -95,9 +102,6 @@ class UDPServer {
             }
 
 
-
-
-
             finished = false;
             start = 0;
             end = 1024;
@@ -134,6 +138,8 @@ class UDPServer {
             DatagramPacket sendPacket = new DatagramPacket(nullBytePacket, nullBytePacket.length, IPAddress, port);
             serverSocket.send(sendPacket); 
             System.out.println("----------------------------------\nnullByte packet sent.\n----------------------------------");
+            // Gracefully end the program
+            System.exit(0); 
         }
     }
 }
