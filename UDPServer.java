@@ -12,8 +12,6 @@ class UDPServer {
         String nullByte = "\0";
         String errorCode = "";
 
-        //TODO: have the server send the checksum back to client before gremlin function damages any packets
-
         while(true) {
             //Receiving datagram from client
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);

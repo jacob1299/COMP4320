@@ -110,8 +110,7 @@ class UDPClient {
 
         
 
-        //Client side checksum for error detection
-        //short clientCheckSum = UDPPacket.calculateChecksum(receivePacket.getData());
+        
         clientSocket.close();
     }
 
