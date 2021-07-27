@@ -22,6 +22,7 @@ class UDPClient {
         String request = "";
         String[] checkup;
         String modifiedSentence = "";
+        final int WINDOW_SIZE = 8;
 
         //create input stream
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
@@ -43,8 +44,20 @@ class UDPClient {
 
 
         //prompt user for the gremlin probability
-        System.out.println("Enter your gRemLin probability mUaHaHahhaAHAHAahaa: ");
-        double gremlinProb = Double.parseDouble(inFromUser.readLine());
+        double corruptionProb;
+        double lossProb;
+        do {
+            System.out.println("Enter your gremlin probability for packet corruption: ");
+            corruptionProb = Double.parseDouble(inFromUser.readLine());
+            System.out.println("Enter your gremlin probability for packet loss: ");
+            lossProb = Double.parseDouble(inFromUser.readLine());
+            if (corruptionProb + lossProb > 1){
+                System.out.println("Please re-enter probabilities that total less than 1.");
+            }
+            else {
+                break;
+            }
+        }while(true);
 
 
        //prompt user for the HTTP request
@@ -86,7 +99,7 @@ class UDPClient {
             byte[] uncorrupted = receivePacket.getData();
             int uncorruptedChecksum = calcChecksum(uncorrupted);
             // GREMLIN MUAHAHAHHHA
-            byte[] corrupted = Gremlin(gremlinProb, uncorrupted);
+            byte[] corrupted = Gremlin(corruptionProb, lossProb, uncorrupted);
             int corruptedCheckSum = calcChecksum(corrupted);
 
             if(corruptedCheckSum != uncorruptedChecksum) {
@@ -116,8 +129,11 @@ class UDPClient {
 
 
     //gremlin function to corrupt bytes in packets
-    public static byte[] Gremlin(double p, byte[] pack) {
-        if (Math.random() < p) {
+    public static byte[] Gremlin(double p, double loss, byte[] pack) {
+        //this is for combining corruption and loss
+        //c is for corrupt
+        double c = Math.random();
+        if (c < p) {
             double x = Math.random();
             //1 byte corrupted
             if (x <= 0.5) {
@@ -150,6 +166,13 @@ class UDPClient {
                 pack[y] /= 2;
                 pack[q] /= 2;
             }
+        }
+        //this is for packet loss
+        //packet loss and corruption do not happen at the same time
+        else if (c < p + loss){
+            /*This section is telling the client not to send a response ACK
+                We will cross this bridge when we set up ACK
+            */
         }
         return pack;
     }
