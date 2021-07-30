@@ -11,6 +11,9 @@ class UDPServer {
         byte[] receiveData = new byte[1024];
         String nullByte = "\0";
         String errorCode = "";
+        int sequenceNumber = 0;
+        List <byte[]> packets = new ArrayList<byte[]>();
+        final int WINDOW_SIZE = 8;
 
         while(true) {
             //Receiving datagram from client
@@ -76,6 +79,7 @@ class UDPServer {
                 end = headerPacket.length;
             }
 
+            //sending header
             while (finished == false) {
                 byte[] temp = new byte[1024];
                 int dataIndex = 0;
@@ -99,7 +103,6 @@ class UDPServer {
             serverSocket.send(sendPacket); 
             }
 
-
             finished = false;
             start = 0;
             end = 1024;
@@ -107,8 +110,11 @@ class UDPServer {
                 end = bytes.length;
             }
 
+            //splitting up file into packets
+            System.out.println("\n\n---------------------------\nPackets in circulation\n---------------------------");
             while (finished == false) {
-                byte[] data = new byte[1024];
+                byte[] data = new byte[1025];
+
                 int dataIndex = 0;
                 for(int i = start; i < end; i++) {
                 
@@ -125,19 +131,78 @@ class UDPServer {
                     end = bytes.length;
                 }
 
+                data[1024] = (byte)sequenceNumber;
+                sequenceNumber++;
+                System.out.println("SEQUENCE NUMBER = " + data[1024]);
+                
+
+                packets.add(data);
+            }
+        
+            int startIndex = 0;
+            int endIndex = 7;
+            ArrayList <Integer> packetsToResend = new ArrayList<Integer>();
+            boolean Sending = true;
+        //sending packets, waiting for acks and nacks and re-sending packets.
+        while(Sending) {
+                byte[] temp = packets.get(startIndex);
+
+                //create a datagram with data to send, length, IP addr, port
+                DatagramPacket sendPacket = new DatagramPacket(temp, temp.length, IPAddress, port);
+                //send datagram to the server
+                serverSocket.send(sendPacket); 
+
+                //receiving ack or nack
+                DatagramPacket ackOrNackPacket = new DatagramPacket(receiveData, receiveData.length);
+                serverSocket.receive(ackOrNackPacket);
+
+                String X = new String(ackOrNackPacket.getData());
+                String[] input = X.split(" ");
+                String Y = input[1];
+                int Z = Character.getNumericValue(Y.charAt(0));
+                //System.out.println("sequence Number: " + Z);
+                String ackOrNack = input[0];
+                int nackIndex = Character.getNumericValue(Y.charAt(0));
+                
+                //checkif it is ack or nack
+                if(ackOrNack.compareTo("nack") == 0) {
+                    packetsToResend.add(nackIndex);
+                    startIndex++;
+                } else {
+                    startIndex++;
+                    endIndex++;
+                }
+                 
+            
+            //exit the while loop at the last packet
+            if (startIndex == packets.size()) {
+                break;
+            }
+        }
+        
+
+        //resending NACK packages
+        for (int X : packetsToResend) {
+            byte[] temp = packets.get(X);
+
             //create a datagram with data to send, length, IP addr, port
-            DatagramPacket sendPacket = new DatagramPacket(data, data.length, IPAddress, port);
+            DatagramPacket sendPacket = new DatagramPacket(temp, temp.length, IPAddress, port);
             //send datagram to the server
             serverSocket.send(sendPacket); 
-            }
+        }
+    
+    
+   
 
             //Sending the last nullbyte packet
             byte[] nullBytePacket = nullByte.getBytes();
             DatagramPacket sendPacket = new DatagramPacket(nullBytePacket, nullBytePacket.length, IPAddress, port);
             serverSocket.send(sendPacket); 
+            System.out.println("\nThe following have been resent due to NACK:\n" + packetsToResend);
+
             System.out.println("----------------------------------\nnullByte packet sent.\n----------------------------------");
-            // Gracefully end the program
-            System.exit(0); 
+            
+            System.exit(0);
         }
     }
 }

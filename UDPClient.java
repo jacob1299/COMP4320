@@ -1,8 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.lang.Math;
-import java.util.Random;
-import java.util.ArrayList;
+import java.util.*;
 
 /*
     Authors: Colin Vijvere
@@ -18,10 +17,13 @@ class UDPClient {
        
         //variables
         byte[] sendData = new byte[1024];
-        byte [] receiveData = new byte[1024];
+        byte [] receiveData = new byte[1025];
         String request = "";
         String[] checkup;
         String modifiedSentence = "";
+        int sequenceNumber = 0;
+        int corruptedCheckSum = 0;
+        Stack <Integer> SQstack = new Stack<>();
 
         //create input stream
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
@@ -43,8 +45,20 @@ class UDPClient {
 
 
         //prompt user for the gremlin probability
-        System.out.println("Enter your gRemLin probability mUaHaHahhaAHAHAahaa: ");
-        double gremlinProb = Double.parseDouble(inFromUser.readLine());
+        double corruptionProb;
+        double lossProb;
+        do {
+            System.out.println("Enter your gremlin probability for packet corruption: ");
+            corruptionProb = Double.parseDouble(inFromUser.readLine());
+            System.out.println("Enter your gremlin probability for packet loss (corruption prob + loss prob) should be less than one: ");
+            lossProb = Double.parseDouble(inFromUser.readLine());
+            if (corruptionProb + lossProb > 1){
+                System.out.println("Please re-enter probabilities that total less than 1.");
+            }
+            else {
+                break;
+            }
+        }while(true);
 
 
        //prompt user for the HTTP request
@@ -70,6 +84,7 @@ class UDPClient {
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
         int count = 0;
         ArrayList<Integer> corruptedPackets = new ArrayList<>();
+        ArrayList<Integer> lostPackets = new ArrayList<>();
 
         while(finished == false) {
         clientSocket.receive(receivePacket);
@@ -77,35 +92,75 @@ class UDPClient {
             break;
         
 
-        if (count!=0) {
-        modifiedSentence = new String(receivePacket.getData());
-        System.out.print(modifiedSentence);
+        if (count != 0 && count <= 2) {
+        //cutting off the sequence number
+         byte[] temp = Arrays.copyOf(receivePacket.getData(), 1024);
+        
+         modifiedSentence = new String(temp);
+         System.out.print(modifiedSentence);
         }
 
-        if (count > 1) {
+        else if (count > 2) {
+            sequenceNumber = (int)receivePacket.getData()[1024];
+            SQstack.push(sequenceNumber);
+            
+            //Extracting sequence number from packet sequence number
+            byte[] temp = Arrays.copyOf(receivePacket.getData(), 1024);
+            modifiedSentence = new String(temp);
+            System.out.print(modifiedSentence);
+            //System.out.print("SEQUENCENUMBER: " + sequenceNumber);
             byte[] uncorrupted = receivePacket.getData();
             int uncorruptedChecksum = calcChecksum(uncorrupted);
             // GREMLIN MUAHAHAHHHA
-            byte[] corrupted = Gremlin(gremlinProb, uncorrupted);
-            int corruptedCheckSum = calcChecksum(corrupted);
-
-            if(corruptedCheckSum != uncorruptedChecksum) {
-                int num = count - 2;
-                corruptedPackets.add(num);
+            byte[] corrupted = Gremlin(corruptionProb, lossProb, uncorrupted);
+            if(corrupted != null) {
+            corruptedCheckSum = calcChecksum(corrupted);
             }
+            //check if packet is lost, if so send NACK
+            if (corrupted == null) {
+                lostPackets.add(sequenceNumber);
+                String nack = "nack " + sequenceNumber;
+                sendData = nack.getBytes();
+                DatagramPacket nackPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
+                clientSocket.send(nackPacket);
 
+            //check if packet is corrupted, if so send NACK
+            }else if(corruptedCheckSum != uncorruptedChecksum) {
+                corruptedPackets.add(sequenceNumber);
+                String nack = "nack " + sequenceNumber;
+                 //convert the string into a byte array
+                sendData = nack.getBytes();
+                DatagramPacket nackPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
+                clientSocket.send(nackPacket);
+
+            //package is not corrupted or lost, send ACK
+            } else {
+                String ack = "ack " + sequenceNumber;
+                 //convert the string into a byte array
+                sendData = ack.getBytes();
+                DatagramPacket ackPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 8080);
+                clientSocket.send(ackPacket);
+            }
         }
 
         count++;
     } 
 
-        System.out.println("\n-----------------------------------\nAll Packets Received\n-----------------------------------");
+        System.out.println("\n-----------------------------------\nPacket Transmission Report\n-----------------------------------");
         if (corruptedPackets.isEmpty()) {
             System.out.println("No packets were corrupted");
         } else {
-            System.out.println("The following packets were corrupted: \n" + corruptedPackets);
+            System.out.println("The packets with the following seq. numbers were corrupted: \n" + corruptedPackets);
         }
         System.out.println("-----------------------------------");
+        if (lostPackets.isEmpty()) {
+            System.out.println("No packets were lost");
+        } else {
+            System.out.println("The packets with the following seq. numbers were lost: \n" + lostPackets);
+            System.out.println("server did re-send packets that were lost\n");  
+        }
+        System.out.println("-----------------------------------");
+        System.out.println("sequence numbers received: " + SQstack);
 
 
         
@@ -116,8 +171,11 @@ class UDPClient {
 
 
     //gremlin function to corrupt bytes in packets
-    public static byte[] Gremlin(double p, byte[] pack) {
-        if (Math.random() < p) {
+    public static byte[] Gremlin(double p, double loss, byte[] pack) {
+        //this is for combining corruption and loss
+        //c is for corrupt
+        double c = Math.random();
+        if (c < p) {
             double x = Math.random();
             //1 byte corrupted
             if (x <= 0.5) {
@@ -151,10 +209,14 @@ class UDPClient {
                 pack[q] /= 2;
             }
         }
+        
+        //packet loss and corruption do not happen at the same time
+        //if packet is lost, we set it to null
+        else if (c < p + loss){
+            pack = null;
+        }
         return pack;
     }
-
-
 
     /*Calculates the checksum*/
     public static int calcChecksum(byte[] data) {
@@ -164,5 +226,6 @@ class UDPClient {
         }
         return calc_checksum;
     }
+
 
 }
